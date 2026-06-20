@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Java 스택·큐·덱·힙 자동채점</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15120D;
+    --surface:#1E1912;
+    --surface2:#241D15;
+    --code-bg:#0F0D09;
+    --border:#332B20;
+    --border-soft:#2A2318;
+    --accent:#D98C3D;
+    --accent-soft:#E8A552;
+    --success:#6FD9A0;
+    --fail:#E2604F;
+    --text:#F3ECDD;
+    --muted:#9C9284;
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --display:'Space Grotesk', sans-serif;
+    --body:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--body);
+    min-height:100vh;
+  }
+  #app{max-width:1180px;margin:0 auto;padding:28px 20px 60px;}
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    gap:20px;flex-wrap:wrap;margin-bottom:22px;
+  }
+  .brand-eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+    color:var(--accent-soft);text-transform:uppercase;margin-bottom:6px;
+  }
+  .brand-title{
+    font-family:var(--display);font-weight:700;font-size:28px;
+    letter-spacing:-0.01em;margin:0;
+  }
+  .brand-sub{color:var(--muted);font-size:13px;margin-top:4px;}
+  .top-stats{display:flex;align-items:center;gap:14px;}
+  .progress-wrap{min-width:220px;}
+  .progress-label{
+    display:flex;justify-content:space-between;font-family:var(--mono);
+    font-size:12px;color:var(--muted);margin-bottom:6px;
+  }
+  .progress-label b{color:var(--text);font-weight:600;}
+  .progress-track{
+    height:8px;border-radius:99px;background:var(--surface2);
+    border:1px solid var(--border);overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-soft));
+    transition:width .3s ease;
+  }
+  .reset-btn{
+    font-family:var(--mono);font-size:12px;color:var(--muted);
+    background:transparent;border:1px solid var(--border);border-radius:8px;
+    padding:8px 12px;cursor:pointer;transition:.15s;
+  }
+  .reset-btn:hover{border-color:var(--fail);color:var(--fail);}
+
+  /* ---------- layout ---------- */
+  .layout{display:grid;grid-template-columns:230px 1fr;gap:18px;}
+  @media(max-width:760px){.layout{grid-template-columns:1fr;}}
+
+  .sidebar{display:flex;flex-direction:column;gap:14px;}
+  .level-tabs{display:flex;flex-direction:column;gap:6px;}
+  @media(max-width:760px){.level-tabs{flex-direction:row;overflow-x:auto;padding-bottom:4px;}}
+  .level-tab{
+    text-align:left;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:10px 12px;cursor:pointer;color:var(--text);
+    font-family:var(--body);transition:.15s;
+  }
+  @media(max-width:760px){.level-tab{flex:0 0 auto;min-width:150px;}}
+  .level-tab:hover{border-color:var(--accent-soft);}
+  .level-tab.active{border-color:var(--accent);background:var(--surface2);}
+  .level-tab .lt-name{font-weight:600;font-size:13px;}
+  .level-tab .lt-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .level-tab .lt-count{
+    font-family:var(--mono);font-size:11px;color:var(--accent-soft);margin-top:6px;
+  }
+
+  .dot-grid{
+    display:grid;grid-template-columns:repeat(6,1fr);gap:6px;
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;
+  }
+  @media(max-width:760px){.dot-grid{grid-template-columns:repeat(10,1fr);}}
+  .dot{
+    aspect-ratio:1;border-radius:6px;border:1px solid var(--border);
+    background:var(--surface2);display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:10px;color:var(--muted);cursor:pointer;transition:.15s;
+  }
+  .dot:hover{border-color:var(--accent-soft);}
+  .dot.current{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+  .dot.pass{background:rgba(111,217,160,.14);border-color:var(--success);color:var(--success);}
+  .dot.fail{background:rgba(226,96,79,.14);border-color:var(--fail);color:var(--fail);}
+  .dot.bookmarked{outline:2px solid var(--accent-soft);outline-offset:1px;}
+
+  .kbd-hint{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;}
+  .kbd-hint kbd{
+    background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+    padding:1px 5px;font-family:var(--mono);font-size:10.5px;color:var(--text);
+  }
+
+  /* ---------- question card ---------- */
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;display:flex;flex-direction:column;gap:14px;
+  }
+  .card-eyebrow{
+    font-family:var(--mono);font-size:11px;color:var(--accent-soft);
+    letter-spacing:.08em;text-transform:uppercase;
+  }
+  .card-title{font-family:var(--display);font-size:21px;font-weight:600;margin:0;}
+  .concept{
+    background:var(--surface2);border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0;padding:10px 14px;font-size:13.5px;line-height:1.6;color:var(--text);
+  }
+  .concept b{color:var(--accent-soft);}
+
+  .codebox{
+    background:var(--code-bg);border:1px solid var(--border-soft);border-radius:10px;
+    padding:14px 16px;font-family:var(--mono);font-size:13.5px;line-height:1.7;
+  }
+  .cl{white-space:pre-wrap;color:var(--text);}
+  .cl.muted{color:var(--muted);}
+  .blank{
+    width:100%;resize:vertical;background:#191309;border:1px dashed var(--accent-soft);
+    border-radius:6px;color:var(--accent-soft);font-family:var(--mono);font-size:13.5px;
+    padding:8px 10px;margin:4px 0;outline:none;
+  }
+  .blank:focus{border-style:solid;border-color:var(--accent);}
+  .expected{
+    font-family:var(--mono);font-size:12.5px;color:var(--muted);
+  }
+  .expected code{color:var(--accent-soft);background:none;}
+
+  .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .btn{
+    font-family:var(--body);font-weight:600;font-size:13px;border-radius:8px;
+    padding:9px 16px;cursor:pointer;border:1px solid var(--border);transition:.15s;
+  }
+  .btn-grade{background:var(--accent);border-color:var(--accent);color:#191309;}
+  .btn-grade:hover{background:var(--accent-soft);}
+  .btn-ghost{background:transparent;color:var(--muted);}
+  .btn-ghost:hover{color:var(--text);border-color:var(--accent-soft);}
+  .btn-nav{background:var(--surface2);color:var(--text);}
+  .btn-nav:hover{border-color:var(--accent-soft);}
+  .btn-nav:disabled{opacity:.35;cursor:not-allowed;}
+
+  .feedback{
+    font-family:var(--mono);font-size:13px;border-radius:8px;padding:9px 12px;display:none;
+  }
+  .feedback.show{display:block;}
+  .feedback.pass{background:rgba(111,217,160,.12);color:var(--success);border:1px solid rgba(111,217,160,.3);}
+  .feedback.fail{background:rgba(226,96,79,.12);color:var(--fail);border:1px solid rgba(226,96,79,.3);}
+
+  .answer-box{
+    display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;
+  }
+  .answer-box.show{display:block;}
+  .answer-box .lbl{font-family:var(--mono);font-size:11px;color:var(--accent-soft);margin-bottom:8px;letter-spacing:.06em;}
+  .answer-box .al{font-family:var(--mono);font-size:13.5px;color:var(--text);white-space:pre-wrap;}
+  .answer-box .note{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.6;}
+
+  .nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+  .nav-row .pos{font-family:var(--mono);font-size:12px;color:var(--muted);}
+
+  /* ---------- terminal log ---------- */
+  .terminal{
+    margin-top:20px;background:var(--code-bg);border:1px solid var(--border-soft);
+    border-radius:12px;overflow:hidden;
+  }
+  .terminal-head{
+    display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface2);
+    border-bottom:1px solid var(--border-soft);font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  }
+  .terminal-dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+  .terminal-body{
+    height:150px;overflow-y:auto;padding:12px 14px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.7;color:var(--muted);
+  }
+  .terminal-body .ln{white-space:pre-wrap;}
+  .terminal-body .ln.pass{color:var(--success);}
+  .terminal-body .ln.fail{color:var(--fail);}
+  .terminal-body .ln.cmd{color:var(--accent-soft);}
+  .cursor{display:inline-block;width:7px;height:13px;background:var(--accent-soft);
+    animation:blink 1s steps(1) infinite;vertical-align:-2px;}
+  @keyframes blink{50%{opacity:0;}}
+
+  .loading{padding:60px 0;text-align:center;color:var(--muted);font-family:var(--mono);font-size:13px;}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">진행 상황 불러오는 중...</div></div>
+
+<script>
+(function(){
+
+  /* ============ 데이터 ============ */
+  var LEVELS = [
+    {id:0, name:'1장 Stack', sub:'LIFO · 괄호 검사 · 후위표기법'},
+    {id:1, name:'2장 Queue', sub:'FIFO · BFS 방문 처리 패턴'},
+    {id:2, name:'3장 Deque', sub:'양쪽 끝 접근 · 슬라이딩 윈도우'},
+    {id:3, name:'4장 PriorityQueue', sub:'힙 · Comparator · 다익스트라'},
+    {id:4, name:'5장 변형 연습', sub:'같은 패턴, 다른 데이터로 반복'}
+  ];
+
+  var QUESTIONS = [
+    /* ---------------- 1장 Stack ---------------- */
+    {id:'ST1', level:0, title:'Stack 기본 — push & pop',
+     concept:'값을 순서대로 쌓아올리는 연산과, 맨 위 값을 꺼내면서 동시에 제거하는 연산이 짝을 이룹니다. 꺼낸 값은 변수에 담아 출력에 사용해야 합니다.',
+     before:['Deque<Integer> stack = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (1, 2, 3 순서로 push 한 뒤, 맨 위 값을 꺼내 top에 저장)'], rows:4,
+     after:['System.out.println(top);','System.out.println(stack);'],
+     expected:'3, [2, 1]',
+     answer:['stack.push(1);','stack.push(2);','stack.push(3);','int top = stack.pop();'],
+     note:'ArrayDeque를 스택처럼 쓸 때 push()/pop()은 모두 앞쪽을 기준으로 동작합니다. 그래서 toString()으로 출력하면 가장 나중에 넣은 값이 맨 앞에 나옵니다.',
+     regex:[/push\s*\(\s*1\s*\)/, /push\s*\(\s*2\s*\)/, /push\s*\(\s*3\s*\)/, /int\s+top\s*=\s*stack\.pop\s*\(\s*\)/]},
+
+    {id:'ST2', level:0, title:'peek() — top 값 확인',
+     concept:'스택에서 가장 위에 있는 값을 제거하지 않고 확인만 하는 연산입니다. 여러 번 호출해도 스택 상태는 그대로 유지됩니다.',
+     before:['Deque<Integer> stack = new ArrayDeque<>();','stack.push(10);','stack.push(20);','stack.push(30);'],
+     placeholder:['int top = /* TODO */;'],
+     after:['System.out.println(top);','System.out.println(stack.size());'],
+     expected:'30, 3',
+     answer:['int top = stack.peek();'], note:'',
+     regex:[/int\s+top\s*=\s*stack\.peek\s*\(\s*\)/]},
+
+    {id:'ST3', level:0, title:'괄호 짝 검사',
+     concept:'여는 괄호를 만나면 쌓아두고, 닫는 괄호를 만나면 하나를 꺼내 짝을 맞춥니다. 문자열을 모두 처리한 뒤 스택이 비어있으면 짝이 맞는 것입니다.',
+     before:['String s = "((()))";','Deque<Character> stack = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (\'(\'를 만나면 push, \')\'를 만나면 pop)'], rows:4,
+     after:['System.out.println(stack.isEmpty());'],
+     expected:'true',
+     answer:['for (char c : s.toCharArray()) {','    if (c == \'(\') stack.push(c);','    else stack.pop();','}'],
+     note:'이 문제는 괄호 한 종류만 다루는 단순화 버전입니다. 실전에서는 여는/닫는 괄호의 종류까지 짝이 맞는지 검사해야 합니다.',
+     regex:[/for\s*\(\s*char\s+\w+\s*:\s*s\.toCharArray\s*\(\s*\)\s*\)/, /stack\.push\s*\(/, /stack\.pop\s*\(\s*\)/]},
+
+    {id:'ST4', level:0, title:'후위표기법(postfix) 계산',
+     concept:'후위표기법은 연산자가 피연산자 뒤에 옵니다. 숫자를 만나면 push하고, 연산자를 만나면 두 번 pop해서 계산한 뒤 다시 push합니다. 먼저 꺼낸 값이 오른쪽, 다음에 꺼낸 값이 왼쪽 피연산자입니다.',
+     before:['String[] tokens = {"3", "4", "+", "2", "*"};','Deque<Integer> stack = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (숫자면 push, 연산자면 두 번 pop(b, a 순서)해서 계산 후 다시 push)'], rows:8,
+     after:['System.out.println(stack.pop());'],
+     expected:'14',
+     answer:['for (String t : tokens) {','    if (t.equals("+") || t.equals("-") || t.equals("*") || t.equals("/")) {','        int b = stack.pop();','        int a = stack.pop();','        if (t.equals("+")) stack.push(a + b);','        else if (t.equals("-")) stack.push(a - b);','        else if (t.equals("*")) stack.push(a * b);','        else stack.push(a / b);','    } else {','        stack.push(Integer.parseInt(t));','    }','}'],
+     note:'뺄셈/나눗셈처럼 순서가 결과에 영향을 주는 연산에서는 b(먼저 꺼낸 값)와 a(나중에 꺼낸 값)를 헷갈리지 않는 게 중요합니다. (3 4 + 2 *) → (3+4)*2 = 14',
+     regex:[/int\s+b\s*=\s*stack\.pop\s*\(\s*\)/, /int\s+a\s*=\s*stack\.pop\s*\(\s*\)/, /stack\.push\s*\(/, /Integer\.parseInt\s*\(/]},
+
+    {id:'ST5', level:0, title:'Deque를 Stack처럼 — addFirst/pollFirst',
+     concept:'Stack 클래스 대신 Deque를 스택처럼 쓸 때는, push()/pop()/peek() 대신 같은 동작을 하는 addFirst()/pollFirst()/peekFirst()를 직접 써도 됩니다.',
+     before:['Deque<Integer> stack = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (addFirst로 10, 20, 30 순서로 넣고, pollFirst로 하나 꺼내 top에 저장)'], rows:4,
+     after:['System.out.println(top);','System.out.println(stack.peekFirst());'],
+     expected:'30, 20',
+     answer:['stack.addFirst(10);','stack.addFirst(20);','stack.addFirst(30);','int top = stack.pollFirst();'],
+     note:'push() = addFirst(), pop() = pollFirst(), peek() = peekFirst() — 모두 같은 동작의 다른 이름입니다.',
+     regex:[/addFirst\s*\(\s*10\s*\)/, /addFirst\s*\(\s*20\s*\)/, /addFirst\s*\(\s*30\s*\)/, /int\s+top\s*=\s*stack\.pollFirst\s*\(\s*\)/]},
+
+    /* ---------------- 2장 Queue ---------------- */
+    {id:'QU1', level:1, title:'Queue 기본 — offer & poll',
+     concept:'큐는 먼저 넣은 값이 먼저 나옵니다(FIFO). 값을 뒤에 추가하는 연산과, 맨 앞 값을 꺼내면서 동시에 제거하는 연산이 짝을 이룹니다.',
+     before:['Queue<Integer> queue = new LinkedList<>();'],
+     placeholder:['// TODO','// (1, 2, 3 순서로 offer 한 뒤, 맨 앞 값을 꺼내 first에 저장)'], rows:4,
+     after:['System.out.println(first);','System.out.println(queue);'],
+     expected:'1, [2, 3]',
+     answer:['queue.offer(1);','queue.offer(2);','queue.offer(3);','int first = queue.poll();'], note:'',
+     regex:[/offer\s*\(\s*1\s*\)/, /offer\s*\(\s*2\s*\)/, /offer\s*\(\s*3\s*\)/, /int\s+first\s*=\s*queue\.poll\s*\(\s*\)/]},
+
+    {id:'QU2', level:1, title:'peek() — front 값 확인',
+     concept:'큐에서 가장 먼저 나갈 값을 제거하지 않고 확인만 하는 연산입니다.',
+     before:['Queue<Integer> queue = new LinkedList<>();','queue.offer(5);','queue.offer(6);','queue.offer(7);'],
+     placeholder:['int first = /* TODO */;'],
+     after:['System.out.println(first);','System.out.println(queue.size());'],
+     expected:'5, 3',
+     answer:['int first = queue.peek();'], note:'',
+     regex:[/int\s+first\s*=\s*queue\.peek\s*\(\s*\)/]},
+
+    {id:'QU3', level:1, title:'BFS 방문 처리 시점',
+     concept:'BFS에서 visited 체크는 큐에 넣을 때 하는 게 정석입니다 — poll() 시점에 체크하면 같은 노드가 중복으로 큐에 쌓일 수 있습니다. 인접 노드를 큐에 넣기 직전에 방문 표시를 같이 해야 합니다.',
+     before:['int[][] graph = {{1,2},{0,3},{0,3},{1,2}};','boolean[] visited = new boolean[4];','Queue<Integer> queue = new LinkedList<>();','queue.offer(0); visited[0] = true;','List<Integer> order = new ArrayList<>();','while (!queue.isEmpty()) {','    int cur = queue.poll();','    order.add(cur);'],
+     placeholder:['    // TODO','    // (graph[cur]의 인접 노드 중 미방문 노드를 찾아 visited 표시 후 큐에 추가)'], rows:3,
+     after:['}','System.out.println(order);'],
+     expected:'[0, 1, 2, 3]',
+     answer:['    for (int next : graph[cur]) {','        if (!visited[next]) {','            visited[next] = true;','            queue.offer(next);','        }','    }'],
+     note:'visited 표시는 poll() 직후가 아니라 offer() 직전에 합니다. 그래야 같은 노드가 큐에 두 번 들어가는 걸 막을 수 있습니다.',
+     regex:[/for\s*\(\s*int\s+\w+\s*:\s*graph\[\s*cur\s*\]\s*\)/, /visited\[\s*\w+\s*\]\s*=\s*true/, /queue\.offer\s*\(/]},
+
+    {id:'QU4', level:1, title:'레벨별 BFS — 깊이(depth) 세기',
+     concept:'큐의 현재 크기(이번 레벨에 있는 노드 수)를 미리 저장해두고, 그 개수만큼만 꺼내 처리하면 한 레벨이 끝나는 시점을 알 수 있습니다. 이 패턴으로 "몇 단계 만에 도달하는지" 깊이를 셀 수 있습니다.',
+     before:['int[][] graph = {{1,2},{0,3,4},{0},{1},{1}};','boolean[] visited = new boolean[5];','Queue<Integer> queue = new LinkedList<>();','queue.offer(0); visited[0] = true;','int depth = 0;','while (!queue.isEmpty()) {'],
+     placeholder:['    // TODO','    // (현재 큐 크기를 levelSize에 저장, 그 개수만큼 꺼내며 인접 노드를 큐에 추가, 끝나면 depth++)'], rows:6,
+     after:['}','System.out.println(depth);'],
+     expected:'3',
+     answer:['    int levelSize = queue.size();','    for (int i = 0; i < levelSize; i++) {','        int cur = queue.poll();','        for (int next : graph[cur]) {','            if (!visited[next]) {','                visited[next] = true;','                queue.offer(next);','            }','        }','    }','    depth++;'],
+     note:'이 패턴은 "미로 최단거리", "단계별 전염 확산"처럼 레벨(깊이) 정보가 필요한 BFS 문제에서 자주 쓰입니다.',
+     regex:[/int\s+levelSize\s*=\s*queue\.size\s*\(\s*\)/, /for\s*\(\s*int\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*levelSize\s*;\s*\w+\+\+\s*\)/, /depth\+\+/]},
+
+    {id:'QU5', level:1, title:'큐 비우며 순서대로 처리',
+     concept:'큐가 빌 때까지 반복하면서 꺼낸 값을 차례로 처리하는 가장 기본적인 패턴입니다.',
+     before:['Queue<Integer> queue = new LinkedList<>(Arrays.asList(1, 2, 3));','StringBuilder sb = new StringBuilder();'],
+     placeholder:['// TODO','// (큐가 빌 때까지 poll()해서 sb에 이어붙이기)'], rows:3,
+     after:['System.out.println(sb.toString());'],
+     expected:'123',
+     answer:['while (!queue.isEmpty()) {','    sb.append(queue.poll());','}'], note:'',
+     regex:[/while\s*\(\s*!\s*queue\.isEmpty\s*\(\s*\)\s*\)/, /sb\.append\s*\(\s*queue\.poll\s*\(\s*\)\s*\)/]},
+
+    /* ---------------- 3장 Deque ---------------- */
+    {id:'DQ1', level:2, title:'Deque 기본 — addFirst/addLast/pollFirst',
+     concept:'Deque는 양쪽 끝에서 모두 추가·제거가 가능합니다. addLast()는 뒤에, addFirst()는 앞에 추가하고, pollFirst()는 맨 앞 값을 꺼내며 제거합니다.',
+     before:['Deque<Integer> deque = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (addLast로 1, 2를 넣고, addFirst로 0을 넣은 뒤, 맨 앞 값을 꺼내 first에 저장)'], rows:4,
+     after:['System.out.println(first);','System.out.println(deque);'],
+     expected:'0, [1, 2]',
+     answer:['deque.addLast(1);','deque.addLast(2);','deque.addFirst(0);','int first = deque.pollFirst();'], note:'',
+     regex:[/addLast\s*\(\s*1\s*\)/, /addLast\s*\(\s*2\s*\)/, /addFirst\s*\(\s*0\s*\)/, /int\s+first\s*=\s*deque\.pollFirst\s*\(\s*\)/]},
+
+    {id:'DQ2', level:2, title:'뒤쪽 조작 — pollLast()',
+     concept:'Deque의 뒤쪽도 addLast()로 넣고 pollLast()로 꺼낼 수 있습니다. 앞/뒤 조작이 완전히 대칭입니다.',
+     before:['Deque<Integer> deque = new ArrayDeque<>();','deque.addLast(1);','deque.addLast(2);','deque.addLast(3);'],
+     placeholder:['int last = /* TODO */;'],
+     after:['System.out.println(last);','System.out.println(deque);'],
+     expected:'3, [1, 2]',
+     answer:['int last = deque.pollLast();'], note:'',
+     regex:[/int\s+last\s*=\s*deque\.pollLast\s*\(\s*\)/]},
+
+    {id:'DQ3', level:2, title:'모노토닉 덱 — 슬라이딩 윈도우 최댓값',
+     concept:'슬라이딩 윈도우의 최댓값을 구할 때, 덱에 절대 답이 될 수 없는 뒤쪽 인덱스를 미리 버려가며 큰 값만 남깁니다. 새 인덱스를 넣기 전, 덱 맨 뒤 인덱스의 값이 새 값보다 작으면 계속 꺼내 버립니다.',
+     before:['int[] nums = {1, 3, -1, -3, 5, 3, 6, 7};','Deque<Integer> deque = new ArrayDeque<>(); // 인덱스를 저장','for (int i = 0; i < nums.length; i++) {'],
+     placeholder:['    // TODO','    // (deque 맨 뒤 인덱스의 값이 nums[i]보다 작으면 계속 pollLast, 이후 i를 addLast)'], rows:3,
+     after:['}','System.out.println(nums[deque.peekFirst()]);'],
+     expected:'7',
+     answer:['    while (!deque.isEmpty() && nums[deque.peekLast()] < nums[i]) {','        deque.pollLast();','    }','    deque.addLast(i);'],
+     note:'이 구조를 모노토닉 덱(monotonic deque)이라고 합니다. 윈도우 범위를 벗어난 인덱스를 앞에서 추가로 pollFirst() 하면 "슬라이딩 윈도우 최댓값" 문제가 완성됩니다.',
+     regex:[/while\s*\(\s*!\s*deque\.isEmpty\s*\(\s*\)\s*&&\s*nums\[\s*deque\.peekLast\s*\(\s*\)\s*\]\s*<\s*nums\[\s*i\s*\]\s*\)/, /deque\.pollLast\s*\(\s*\)/, /deque\.addLast\s*\(\s*i\s*\)/]},
+
+    {id:'DQ4', level:2, title:'회문(palindrome) 검사',
+     concept:'양 끝에서 동시에 값을 꺼내 비교하면서 가운데로 좁혀가는 방식으로 회문을 검사할 수 있습니다. 한 번이라도 다르면 결과는 false입니다.',
+     before:['String s = "level";','Deque<Character> deque = new ArrayDeque<>();','for (char c : s.toCharArray()) deque.addLast(c);','boolean isPalindrome = true;'],
+     placeholder:['// TODO','// (deque.size() > 1인 동안, pollFirst와 pollLast를 비교해서 다르면 isPalindrome = false)'], rows:4,
+     after:['System.out.println(isPalindrome);'],
+     expected:'true',
+     answer:['while (deque.size() > 1) {','    if (deque.pollFirst() != deque.pollLast()) {','        isPalindrome = false;','    }','}'],
+     note:'Character처럼 박싱된 타입을 != 로 비교하면 원래는 객체 참조 비교가 됩니다. 다만 char 값(0~127) 범위에서는 자바의 Character 캐시 덕분에 이 예제처럼 의도대로 동작합니다.',
+     regex:[/while\s*\(\s*deque\.size\s*\(\s*\)\s*>\s*1\s*\)/, /deque\.pollFirst\s*\(\s*\)\s*!=\s*deque\.pollLast\s*\(\s*\)/, /isPalindrome\s*=\s*false/]},
+
+    {id:'DQ5', level:2, title:'최근 K개만 유지하는 슬라이딩 버퍼',
+     concept:'덱은 "최근 K개만 유지"하는 버퍼로도 자주 쓰입니다. 새 값은 뒤에 추가하고, 크기가 K를 넘으면 맨 앞 값을 하나 제거합니다.',
+     before:['Deque<Integer> window = new ArrayDeque<>();','int k = 3;','int[] nums = {1, 2, 3, 4, 5};','for (int n : nums) {','    window.addLast(n);'],
+     placeholder:['    // TODO','    // (window 크기가 k를 넘으면 pollFirst로 맨 앞을 하나 제거)'], rows:3,
+     after:['}','System.out.println(window);'],
+     expected:'[3, 4, 5]',
+     answer:['    if (window.size() > k) {','        window.pollFirst();','    }'], note:'',
+     regex:[/if\s*\(\s*window\.size\s*\(\s*\)\s*>\s*k\s*\)/, /window\.pollFirst\s*\(\s*\)/]},
+
+    /* ---------------- 4장 PriorityQueue ---------------- */
+    {id:'PQ1', level:3, title:'PriorityQueue 기본 — 최소 힙',
+     concept:'PriorityQueue는 기본적으로 가장 작은 값이 먼저 나오는 최소 힙(min heap)입니다. offer()로 순서 상관없이 넣어도, poll()은 항상 가장 작은 값을 꺼냅니다.',
+     before:['Queue<Integer> pq = new PriorityQueue<>();'],
+     placeholder:['// TODO','// (5, 1, 3 순서로 offer한 뒤, poll()로 하나 꺼내 min에 저장)'], rows:4,
+     after:['System.out.println(min);'],
+     expected:'1',
+     answer:['pq.offer(5);','pq.offer(1);','pq.offer(3);','int min = pq.poll();'], note:'',
+     regex:[/offer\s*\(\s*5\s*\)/, /offer\s*\(\s*1\s*\)/, /offer\s*\(\s*3\s*\)/, /int\s+min\s*=\s*pq\.poll\s*\(\s*\)/]},
+
+    {id:'PQ2', level:3, title:'최대 힙 — Comparator.reverseOrder()',
+     concept:'가장 큰 값을 먼저 꺼내고 싶다면, 생성할 때 비교 기준을 거꾸로 뒤집는 Comparator를 넘겨주면 됩니다.',
+     before:['Queue<Integer> pq = new PriorityQueue<>(Comparator.reverseOrder());','pq.offer(5); pq.offer(1); pq.offer(3);'],
+     placeholder:['int max = /* TODO */;'],
+     after:['System.out.println(max);'],
+     expected:'5',
+     answer:['int max = pq.poll();'],
+     note:'new PriorityQueue<>((a, b) -> b - a) 처럼 람다로 직접 비교자를 작성해도 같은 결과입니다.',
+     regex:[/int\s+max\s*=\s*pq\.poll\s*\(\s*\)/]},
+
+    {id:'PQ3', level:3, title:'객체 Comparator — 점수 기준 정렬',
+     concept:'객체(또는 배열)를 우선순위 큐에 넣을 때는, 어떤 필드를 기준으로 비교할지 Comparator로 직접 정의해야 합니다. score가 낮은 학생부터 나오게 하려면 점수를 오름차순으로 비교합니다.',
+     before:['int[][] students = {{1, 85}, {2, 70}, {3, 95}}; // {id, score}','Queue<int[]> pq = new PriorityQueue<>((a, b) -> a[1] - b[1]);'],
+     placeholder:['// TODO','// (students의 각 원소를 모두 offer)'], rows:3,
+     after:['System.out.println(pq.poll()[0]);'],
+     expected:'2',
+     answer:['for (int[] s : students) {','    pq.offer(s);','}'],
+     note:'(a, b) -> a[1] - b[1]은 "a[1]이 작을수록 앞으로"라는 뜻입니다. 점수가 높은 학생부터 나오게 하려면 b[1] - a[1]로 뒤집으면 됩니다.',
+     regex:[/for\s*\(\s*int\s*\[\s*\]\s+\w+\s*:\s*students\s*\)/, /pq\.offer\s*\(/]},
+
+    {id:'PQ4', level:3, title:'K번째로 작은 값',
+     concept:'전체를 정렬하지 않아도, 우선순위 큐에서 poll()을 K번 반복하면 K번째로 작은 값을 바로 얻을 수 있습니다.',
+     before:['int[] arr = {7, 2, 9, 4, 1, 8};','Queue<Integer> pq = new PriorityQueue<>();','for (int n : arr) pq.offer(n);','int k = 3;'],
+     placeholder:['// TODO','// (poll()을 k번 반복해서 마지막으로 꺼낸 값을 kth에 저장)'], rows:4,
+     after:['System.out.println(kth);'],
+     expected:'4',
+     answer:['int kth = 0;','for (int i = 0; i < k; i++) {','    kth = pq.poll();','}'], note:'',
+     regex:[/for\s*\(\s*int\s+i\s*=\s*0\s*;\s*i\s*<\s*k\s*;\s*i\+\+\s*\)/, /kth\s*=\s*pq\.poll\s*\(\s*\)/]},
+
+    {id:'PQ5', level:3, title:'다익스트라 비교자 패턴',
+     concept:'다익스트라(Dijkstra) 알고리즘에서는 {노드, 현재까지의 거리}를 함께 큐에 넣고, 거리가 짧은 것부터 꺼내야 합니다. int[]의 두 번째 값(거리)을 기준으로 비교자를 만듭니다.',
+     before:['Queue<int[]> pq = new PriorityQueue<>((a, b) -> a[1] - b[1]);','pq.offer(new int[]{1, 10});','pq.offer(new int[]{2, 3});','pq.offer(new int[]{3, 7});'],
+     placeholder:['int[] nearest = /* TODO */;'],
+     after:['System.out.println(nearest[0] + " " + nearest[1]);'],
+     expected:'2 3',
+     answer:['int[] nearest = pq.poll();'], note:'',
+     regex:[/int\s*\[\s*\]\s+nearest\s*=\s*pq\.poll\s*\(\s*\)/]},
+
+    /* ---------------- 5장 변형 연습 ---------------- */
+    {id:'V1', level:4, title:'🔁 변형: Stack — push & pop (다른 데이터)',
+     concept:'ST1과 같은 패턴입니다. push와 pop 순서만 기억하면 됩니다.',
+     before:['Deque<Integer> stack = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (7, 8, 9 순서로 push한 뒤, 맨 위 값을 꺼내 top에 저장)'], rows:4,
+     after:['System.out.println(top);','System.out.println(stack);'],
+     expected:'9, [8, 7]',
+     answer:['stack.push(7);','stack.push(8);','stack.push(9);','int top = stack.pop();'], note:'',
+     regex:[/push\s*\(\s*7\s*\)/, /push\s*\(\s*8\s*\)/, /push\s*\(\s*9\s*\)/, /int\s+top\s*=\s*stack\.pop\s*\(\s*\)/]},
+
+    {id:'V2', level:4, title:'🔁 변형: Queue — BFS 방문 순서 (다른 그래프)',
+     concept:'QU3와 같은 BFS 방문 패턴입니다. 그래프 구조만 다릅니다.',
+     before:['int[][] graph = {{1,2,3},{0},{0},{0,4},{3}};','boolean[] visited = new boolean[5];','Queue<Integer> queue = new LinkedList<>();','queue.offer(0); visited[0] = true;','List<Integer> order = new ArrayList<>();','while (!queue.isEmpty()) {','    int cur = queue.poll();','    order.add(cur);'],
+     placeholder:['    // TODO','    // (graph[cur]의 인접 노드 중 미방문 노드를 찾아 visited 표시 후 큐에 추가)'], rows:3,
+     after:['}','System.out.println(order);'],
+     expected:'[0, 1, 2, 3, 4]',
+     answer:['    for (int next : graph[cur]) {','        if (!visited[next]) {','            visited[next] = true;','            queue.offer(next);','        }','    }'], note:'',
+     regex:[/for\s*\(\s*int\s+\w+\s*:\s*graph\[\s*cur\s*\]\s*\)/, /visited\[\s*\w+\s*\]\s*=\s*true/, /queue\.offer\s*\(/]},
+
+    {id:'V3', level:4, title:'🔁 변형: Deque — 동점 처리 모노토닉 덱',
+     concept:'DQ3와 같은 모노토닉 덱 패턴이지만, 이번엔 같은 값이 있을 때도 비교 기준에 포함시켜야 합니다(<=). 그래야 동점인 인덱스 중 더 나중 것이 남습니다.',
+     before:['int[] nums = {4, 4, 2, 6, 6, 1};','Deque<Integer> deque = new ArrayDeque<>();','for (int i = 0; i < nums.length; i++) {'],
+     placeholder:['    // TODO','    // (deque 맨 뒤 인덱스의 값이 nums[i] 이하이면 계속 pollLast, 이후 i를 addLast)'], rows:3,
+     after:['}','System.out.println(nums[deque.peekFirst()]);'],
+     expected:'6',
+     answer:['    while (!deque.isEmpty() && nums[deque.peekLast()] <= nums[i]) {','        deque.pollLast();','    }','    deque.addLast(i);'],
+     note:'< 대신 <=를 쓰면, 값이 같을 때도 이전 인덱스를 버리고 더 나중 인덱스를 남깁니다. 동점 처리 방식에 따라 부등호 방향이 달라질 수 있으니 문제 조건을 꼭 확인하세요.',
+     regex:[/while\s*\(\s*!\s*deque\.isEmpty\s*\(\s*\)\s*&&\s*nums\[\s*deque\.peekLast\s*\(\s*\)\s*\]\s*<=\s*nums\[\s*i\s*\]\s*\)/, /deque\.pollLast\s*\(\s*\)/, /deque\.addLast\s*\(\s*i\s*\)/]},
+
+    {id:'V4', level:4, title:'🔁 변형: PriorityQueue — 최대 힙 (다른 데이터)',
+     concept:'PQ2와 같은 최대 힙 패턴입니다. 데이터만 다릅니다.',
+     before:['Queue<Integer> pq = new PriorityQueue<>(Comparator.reverseOrder());','pq.offer(8); pq.offer(3); pq.offer(6); pq.offer(1); pq.offer(9);'],
+     placeholder:['int max = /* TODO */;'],
+     after:['System.out.println(max);'],
+     expected:'9',
+     answer:['int max = pq.poll();'], note:'',
+     regex:[/int\s+max\s*=\s*pq\.poll\s*\(\s*\)/]},
+
+    {id:'V5', level:4, title:'🔁 변형: 괄호 검사 — 다른 문자 섞임',
+     concept:'ST3와 같은 괄호 검사 패턴이지만, 이번엔 괄호가 아닌 문자도 섞여 있습니다. 괄호가 아닌 문자는 그냥 건너뛰면 됩니다.',
+     before:['String s = "a(b(c)d)e";','Deque<Character> stack = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (괄호 문자만 push/pop, 괄호가 아니면 무시)'], rows:4,
+     after:['System.out.println(stack.isEmpty());'],
+     expected:'true',
+     answer:['for (char c : s.toCharArray()) {','    if (c == \'(\') stack.push(c);','    else if (c == \')\') stack.pop();','}'], note:'',
+     regex:[/for\s*\(\s*char\s+\w+\s*:\s*s\.toCharArray\s*\(\s*\)\s*\)/, /stack\.push\s*\(/, /stack\.pop\s*\(\s*\)/]},
+
+    {id:'V6', level:4, title:'🔁 변형: 후위표기법 — 다른 식',
+     concept:'ST4와 같은 후위표기법 계산 패턴입니다. 식만 다릅니다.',
+     before:['String[] tokens = {"5","1","2","+","4","*","+","3","-"};','Deque<Integer> stack = new ArrayDeque<>();'],
+     placeholder:['// TODO','// (숫자면 push, 연산자면 두 번 pop(b, a 순서)해서 계산 후 다시 push)'], rows:8,
+     after:['System.out.println(stack.pop());'],
+     expected:'14',
+     answer:['for (String t : tokens) {','    if (t.equals("+") || t.equals("-") || t.equals("*") || t.equals("/")) {','        int b = stack.pop();','        int a = stack.pop();','        if (t.equals("+")) stack.push(a + b);','        else if (t.equals("-")) stack.push(a - b);','        else if (t.equals("*")) stack.push(a * b);','        else stack.push(a / b);','    } else {','        stack.push(Integer.parseInt(t));','    }','}'],
+     note:'5 1 2 + 4 * + 3 - → 5 + ((1+2)*4) - 3 = 5 + 12 - 3 = 14',
+     regex:[/int\s+b\s*=\s*stack\.pop\s*\(\s*\)/, /int\s+a\s*=\s*stack\.pop\s*\(\s*\)/, /stack\.push\s*\(/, /Integer\.parseInt\s*\(/]},
+
+    {id:'V7', level:4, title:'🔁 변형: 회문 검사 — 회문이 아닌 경우',
+     concept:'DQ4와 같은 회문 검사 패턴이지만, 이번엔 회문이 아닌 단어입니다.',
+     before:['String s = "stack";','Deque<Character> deque = new ArrayDeque<>();','for (char c : s.toCharArray()) deque.addLast(c);','boolean isPalindrome = true;'],
+     placeholder:['// TODO','// (deque.size() > 1인 동안, pollFirst와 pollLast를 비교해서 다르면 isPalindrome = false)'], rows:4,
+     after:['System.out.println(isPalindrome);'],
+     expected:'false',
+     answer:['while (deque.size() > 1) {','    if (deque.pollFirst() != deque.pollLast()) {','        isPalindrome = false;','    }','}'], note:'',
+     regex:[/while\s*\(\s*deque\.size\s*\(\s*\)\s*>\s*1\s*\)/, /deque\.pollFirst\s*\(\s*\)\s*!=\s*deque\.pollLast\s*\(\s*\)/, /isPalindrome\s*=\s*false/]},
+
+    {id:'V8', level:4, title:'🔁 변형: PriorityQueue — 상위 K개 합',
+     concept:'PQ4처럼 poll()을 여러 번 반복하는 패턴인데, 이번엔 꺼낸 값을 누적해서 더합니다 — 가장 큰 값 3개의 합을 구합니다.',
+     before:['int[] arr = {4, 1, 9, 3, 7, 2};','Queue<Integer> maxHeap = new PriorityQueue<>(Comparator.reverseOrder());','for (int n : arr) maxHeap.offer(n);','int sum = 0;'],
+     placeholder:['// TODO','// (poll()을 3번 반복해서 꺼낸 값을 sum에 누적)'], rows:4,
+     after:['System.out.println(sum);'],
+     expected:'20',
+     answer:['for (int i = 0; i < 3; i++) {','    sum += maxHeap.poll();','}'],
+     note:'가장 큰 3개는 9, 7, 4 → 합은 20입니다. poll()을 한 번만 호출하면 안 되고, 반드시 반복문으로 누적해야 합니다.',
+     regex:[/for\s*\(\s*int\s+i\s*=\s*0\s*;\s*i\s*<\s*3\s*;\s*i\+\+\s*\)/, /sum\s*\+=\s*maxHeap\.poll\s*\(\s*\)/]}
+
+  ];
+
+  /* ============ 상태 ============ */
+  var state = {
+    loaded:false,
+    progress:{},      // {qid: {status:'pass'|'fail', input:'...'}}
+    inputs:{},         // 임시 입력값 (세션 내, qid별)
+    revealed:{},        // qid -> bool
+    bookmarks:{},        // qid -> bool, 즐겨찾기한 문제
+    level:0,
+    index:0,
+    log:[],
+    reviewMode:false,   // true면 레벨 무시하고 '틀린 문제'만 모아서 보여줌
+    bookmarkMode:false  // true면 레벨 무시하고 '즐겨찾기한 문제'만 모아서 보여줌
+  };
+
+  var STORAGE_KEY = 'ds_quiz_progress_v3_stack_queue_deque_pq';
+  var BOOKMARK_KEY = 'ds_quiz_bookmarks_v3_stack_queue_deque_pq';
+
+  function esc(s){
+    return String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+  }
+
+  function questionsOfLevel(lv){
+    return QUESTIONS.filter(function(q){return q.level===lv;});
+  }
+
+  function failedQuestions(){
+    return QUESTIONS.filter(function(q){
+      return state.progress[q.id] && state.progress[q.id].status==='fail';
+    });
+  }
+
+  function bookmarkedQuestions(){
+    return QUESTIONS.filter(function(q){ return !!state.bookmarks[q.id]; });
+  }
+
+  function activeQuestionList(){
+    if(state.reviewMode) return failedQuestions();
+    if(state.bookmarkMode) return bookmarkedQuestions();
+    return questionsOfLevel(state.level);
+  }
+
+  function totalPassed(){
+    var n=0;
+    Object.keys(state.progress).forEach(function(k){
+      if(state.progress[k] && state.progress[k].status==='pass') n++;
+    });
+    return n;
+  }
+
+  function levelPassed(lv){
+    var n=0;
+    questionsOfLevel(lv).forEach(function(q){
+      if(state.progress[q.id] && state.progress[q.id].status==='pass') n++;
+    });
+    return n;
+  }
+
+  /* ============ 저장소 ============ */
+  async function loadProgress(){
+    try{
+      var res = await window.storage.get(STORAGE_KEY, false);
+      if(res && res.value){
+        var parsed = JSON.parse(res.value);
+        state.progress = parsed || {};
+      }
+    }catch(e){
+      state.progress = {};
+    }
+    try{
+      var bres = await window.storage.get(BOOKMARK_KEY, false);
+      if(bres && bres.value){
+        var bparsed = JSON.parse(bres.value);
+        state.bookmarks = bparsed || {};
+      }
+    }catch(e){
+      state.bookmarks = {};
+    }
+    state.loaded = true;
+  }
+
+  async function saveProgress(){
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify(state.progress), false);
+    }catch(e){
+      console.error('저장 실패', e);
+    }
+  }
+
+  async function saveBookmarks(){
+    try{
+      await window.storage.set(BOOKMARK_KEY, JSON.stringify(state.bookmarks), false);
+    }catch(e){
+      console.error('북마크 저장 실패', e);
+    }
+  }
+
+  /* ============ 채점 ============ */
+  function gradeQuestion(q, input){
+    return q.regex.every(function(r){ return r.test(input); });
+  }
+
+  function pushLog(qid, pass){
+    state.log.push({cmd:'check '+qid, pass:pass});
+    if(state.log.length>40) state.log.shift();
+  }
+
+  /* ============ 에디터 보조 기능 (괄호 자동완성 · 탭 들여쓰기) ============ */
+  var BRACKET_OPEN_CLOSE = {'(':')', '[':']', '{':'}'};
+  var BRACKET_CLOSE_CHARS = {')':true, ']':true, '}':true};
+  var INDENT_UNIT = '    '; // 4칸
+
+  function lineBoundsOf(value, start, end){
+    var lineStart = value.lastIndexOf('\n', start-1) + 1;
+    var lineEnd = value.indexOf('\n', end);
+    if(lineEnd === -1) lineEnd = value.length;
+    return {lineStart: lineStart, lineEnd: lineEnd};
+  }
+
+  function indentSelection(ta, q){
+    var value = ta.value;
+    var start = ta.selectionStart, end = ta.selectionEnd;
+    if(start === end){
+      ta.value = value.slice(0, start) + INDENT_UNIT + value.slice(start);
+      ta.selectionStart = ta.selectionEnd = start + INDENT_UNIT.length;
+      state.inputs[q.id] = ta.value;
+      return;
+    }
+    var b = lineBoundsOf(value, start, end);
+    var lines = value.slice(b.lineStart, b.lineEnd).split('\n');
+    var indented = lines.map(function(l){ return INDENT_UNIT + l; }).join('\n');
+    ta.value = value.slice(0, b.lineStart) + indented + value.slice(b.lineEnd);
+    ta.selectionStart = start + INDENT_UNIT.length;
+    ta.selectionEnd = end + INDENT_UNIT.length * lines.length;
+    state.inputs[q.id] = ta.value;
+  }
+
+  function outdentSelection(ta, q){
+    var value = ta.value;
+    var start = ta.selectionStart, end = ta.selectionEnd;
+    var b = lineBoundsOf(value, start, end);
+    var lines = value.slice(b.lineStart, b.lineEnd).split('\n');
+    var removed = [];
+    var outdented = lines.map(function(l){
+      var m = l.match(/^( {1,4}|\t)/);
+      var n = m ? m[0].length : 0;
+      removed.push(n);
+      return l.slice(n);
+    }).join('\n');
+    ta.value = value.slice(0, b.lineStart) + outdented + value.slice(b.lineEnd);
+    var firstRemoved = removed[0] || 0;
+    var totalRemoved = removed.reduce(function(a,c){return a+c;}, 0);
+    ta.selectionStart = Math.max(b.lineStart, start - firstRemoved);
+    ta.selectionEnd = Math.max(ta.selectionStart, end - totalRemoved);
+    state.inputs[q.id] = ta.value;
+  }
+
+  function autoIndentNewline(ta, q){
+    var value = ta.value;
+    var pos = ta.selectionStart;
+    var lineStart = value.lastIndexOf('\n', pos-1) + 1;
+    var currentLine = value.slice(lineStart, pos);
+    var indentMatch = currentLine.match(/^[ \t]*/);
+    var indent = indentMatch ? indentMatch[0] : '';
+    var lastNonSpace = value.slice(0, pos).replace(/\s+$/, '').slice(-1);
+    var extra = (lastNonSpace === '{') ? INDENT_UNIT : '';
+    var insertText = '\n' + indent + extra;
+    ta.value = value.slice(0, pos) + insertText + value.slice(pos);
+    var newPos = pos + insertText.length;
+    ta.selectionStart = ta.selectionEnd = newPos;
+    state.inputs[q.id] = ta.value;
+  }
+
+  function handleBracketKeydown(e, ta, q){
+    var key = e.key;
+    if(e.ctrlKey || e.metaKey || e.altKey) return false;
+
+    if(BRACKET_OPEN_CLOSE[key]){
+      var start = ta.selectionStart, end = ta.selectionEnd;
+      var value = ta.value;
+      var close = BRACKET_OPEN_CLOSE[key];
+      if(start !== end){
+        var selected = value.slice(start, end);
+        ta.value = value.slice(0, start) + key + selected + close + value.slice(end);
+        ta.selectionStart = start + 1;
+        ta.selectionEnd = end + 1;
+      }else{
+        ta.value = value.slice(0, start) + key + close + value.slice(start);
+        ta.selectionStart = ta.selectionEnd = start + 1;
+      }
+      state.inputs[q.id] = ta.value;
+      e.preventDefault();
+      return true;
+    }
+
+    if(BRACKET_CLOSE_CHARS[key]){
+      var pos = ta.selectionStart;
+      if(ta.selectionStart === ta.selectionEnd && ta.value[pos] === key){
+        ta.selectionStart = ta.selectionEnd = pos + 1;
+        e.preventDefault();
+        return true;
+      }
+      return false;
+    }
+
+    if(key === 'Backspace'){
+      var s = ta.selectionStart, en = ta.selectionEnd;
+      if(s === en && s > 0){
+        var prevChar = ta.value[s-1];
+        var nextChar = ta.value[s];
+        if(BRACKET_OPEN_CLOSE[prevChar] && BRACKET_OPEN_CLOSE[prevChar] === nextChar){
+          ta.value = ta.value.slice(0, s-1) + ta.value.slice(s+1);
+          ta.selectionStart = ta.selectionEnd = s-1;
+          state.inputs[q.id] = ta.value;
+          e.preventDefault();
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return false;
+  }
+
+  function handleEditorKeydown(e, ta, q){
+    if(e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey){
+      e.preventDefault();
+      if(e.shiftKey) outdentSelection(ta, q); else indentSelection(ta, q);
+      return;
+    }
+    if(e.key === 'Enter' && !e.ctrlKey && !e.metaKey){
+      e.preventDefault();
+      autoIndentNewline(ta, q);
+      return;
+    }
+    handleBracketKeydown(e, ta, q);
+  }
+
+  /* ============ 렌더링 ============ */
+  function renderEmptySpecial(){
+    var app = document.getElementById('app');
+    var passed = totalPassed();
+    var isBookmark = state.bookmarkMode;
+    var title = isBookmark ? '🔖 아직 즐겨찾기한 문제가 없습니다' : '🎉 지금은 틀린 문제가 없습니다';
+    var html = '';
+    html += '<div class="topbar">';
+    html += '  <div>';
+    html += '    <div class="brand-eyebrow">$ run --suite java-stack-queue-deque-pq</div>';
+    html += '    <h1 class="brand-title">스택·큐·덱·힙 자동채점</h1>';
+    html += '  </div>';
+    html += '  <div class="top-stats"><button class="reset-btn" data-action="reset">진행 초기화</button></div>';
+    html += '</div>';
+    html += '<div class="card" style="text-align:center;padding:50px 24px;">';
+    html += '  <div class="card-title">'+title+'</div>';
+    html += '  <p style="color:var(--muted);font-size:13.5px;margin:10px 0 18px;">전체 진행: '+passed+' / '+QUESTIONS.length+'</p>';
+    html += '  <button class="btn btn-grade" data-action="exit-review">전체 문제로 돌아가기</button>';
+    html += '</div>';
+    app.innerHTML = html;
+  }
+
+  function render(){
+    var app = document.getElementById('app');
+    if(!state.loaded){
+      app.innerHTML = '<div class="loading">진행 상황 불러오는 중...</div>';
+      return;
+    }
+    var levelQs = activeQuestionList();
+    if((state.reviewMode || state.bookmarkMode) && levelQs.length===0){
+      renderEmptySpecial();
+      return;
+    }
+    if(state.index >= levelQs.length) state.index = 0;
+    var q = levelQs[state.index];
+    var passed = totalPassed();
+
+    var html = '';
+
+    /* topbar */
+    html += '<div class="topbar">';
+    html += '  <div>';
+    html += '    <div class="brand-eyebrow">$ run --suite java-stack-queue-deque-pq</div>';
+    html += '    <h1 class="brand-title">스택·큐·덱·힙 자동채점</h1>';
+    html += '    <div class="brand-sub">코드를 입력하고 채점하면, 정규식으로 문법을 검증합니다 (실제 자바 실행 X).</div>';
+    html += '    <div class="kbd-hint"><kbd>Ctrl/Cmd</kbd>+<kbd>Enter</kbd> 채점 · <kbd>←</kbd><kbd>→</kbd> 이전/다음 문제 · <kbd>R</kbd> 정답 보기 · <kbd>Esc</kbd> 입력창 빠져나오기 · <kbd>Enter</kbd> 입력창 포커스</div>';
+    html += '  </div>';
+    html += '  <div class="top-stats">';
+    html += '    <div class="progress-wrap">';
+    html += '      <div class="progress-label"><span>전체 진행</span><b>'+passed+' / '+QUESTIONS.length+'</b></div>';
+    html += '      <div class="progress-track"><div class="progress-fill" style="width:'+Math.round(passed/QUESTIONS.length*100)+'%"></div></div>';
+    html += '    </div>';
+    html += '    <button class="reset-btn" data-action="reset">진행 초기화</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="layout">';
+
+    /* sidebar */
+    html += '  <div class="sidebar">';
+    var failCount = failedQuestions().length;
+    var bookmarkCount = Object.keys(state.bookmarks).filter(function(k){return state.bookmarks[k];}).length;
+    html += '    <button class="level-tab" data-action="toggle-review" style="border-color:'+(state.reviewMode?'var(--accent)':'var(--border)')+';background:'+(state.reviewMode?'var(--surface2)':'var(--surface)')+';">';
+    html += '      <div class="lt-name">📌 오답 노트</div>';
+    html += '      <div class="lt-sub">'+(state.reviewMode?'복습 모드 진행 중':'틀린 문제만 모아 다시 풀기')+'</div>';
+    html += '      <div class="lt-count">'+failCount+'개 대기 중</div>';
+    html += '    </button>';
+    html += '    <button class="level-tab" data-action="toggle-bookmark-mode" style="border-color:'+(state.bookmarkMode?'var(--accent)':'var(--border)')+';background:'+(state.bookmarkMode?'var(--surface2)':'var(--surface)')+';">';
+    html += '      <div class="lt-name">🔖 즐겨찾기</div>';
+    html += '      <div class="lt-sub">'+(state.bookmarkMode?'즐겨찾기 모드 진행 중':'북마크한 문제만 모아 보기')+'</div>';
+    html += '      <div class="lt-count">'+bookmarkCount+'개 저장됨</div>';
+    html += '    </button>';
+    html += '    <div class="level-tabs">';
+    LEVELS.forEach(function(lv){
+      var qs = questionsOfLevel(lv.id);
+      var p = levelPassed(lv.id);
+      html += '<div class="level-tab'+((!state.reviewMode && !state.bookmarkMode && state.level===lv.id)?' active':'')+'" data-action="select-level" data-level="'+lv.id+'">';
+      html += '  <div class="lt-name">'+esc(lv.name)+'</div>';
+      html += '  <div class="lt-sub">'+esc(lv.sub)+'</div>';
+      html += '  <div class="lt-count">'+p+' / '+qs.length+' 완료</div>';
+      html += '</div>';
+    });
+    html += '    </div>';
+
+    html += '    <div class="dot-grid">';
+    levelQs.forEach(function(qq, i){
+      var st = state.progress[qq.id] && state.progress[qq.id].status;
+      var cls = 'dot' + (i===state.index?' current':'') + (st==='pass'?' pass':st==='fail'?' fail':'') + (state.bookmarks[qq.id]?' bookmarked':'');
+      html += '<div class="'+cls+'" data-action="jump" data-index="'+i+'" title="'+esc(qq.id)+'">'+(st==='pass'?'✓':st==='fail'?'✗':(i+1))+'</div>';
+    });
+    html += '    </div>';
+    html += '  </div>';
+
+    /* main card */
+    html += '  <div class="content">';
+    html += '    <div class="card">';
+    var eyebrowText = state.reviewMode ? ('📌 오답 노트 (복습 모드)') : (state.bookmarkMode ? '🔖 즐겨찾기 모드' : esc(LEVELS[state.level].name));
+    html += '      <div class="card-eyebrow">'+eyebrowText+' · 문항 '+(state.index+1)+' / '+levelQs.length+' · '+esc(q.id)+'</div>';
+    html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">';
+    html += '        <h2 class="card-title" style="margin:0;">'+esc(q.title)+'</h2>';
+    html += '        <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;white-space:nowrap;" data-action="toggle-bookmark" data-qid="'+esc(q.id)+'">'+(state.bookmarks[q.id]?'🔖 즐겨찾기 해제':'☆ 즐겨찾기 추가')+'</button>';
+    html += '      </div>';
+    if(state.reviewMode || state.bookmarkMode){
+      html += '      <button class="btn btn-ghost" style="align-self:flex-start;padding:5px 10px;font-size:12px;" data-action="exit-review">← 전체 문제로 돌아가기</button>';
+    }
+    html += '      <div class="concept"><b>핵심 개념</b> — '+esc(q.concept)+'</div>';
+
+    html += '      <div class="codebox">';
+    q.before.forEach(function(l){ html += '<div class="cl muted">'+esc(l)+'</div>'; });
+    q.placeholder.forEach(function(l){ html += '<div class="cl muted">'+esc(l)+'</div>'; });
+    var savedInput = (state.inputs[q.id] !== undefined) ? state.inputs[q.id] :
+                      ((state.progress[q.id] && state.progress[q.id].input) || '');
+    html += '<textarea class="blank" id="ans-input" rows="'+(q.rows||2)+'" placeholder="여기에 코드를 입력하세요"></textarea>';
+    q.after.forEach(function(l){ html += '<div class="cl muted">'+esc(l)+'</div>'; });
+    html += '      </div>';
+
+    html += '      <div class="expected">기대 출력: <code>'+esc(q.expected)+'</code></div>';
+
+    var fb = state.progress[q.id];
+    var fbClass = '', fbText = '';
+    if(fb && fb.status==='pass'){ fbClass='pass show'; fbText='✓ PASS — 정답입니다.'; }
+    else if(fb && fb.status==='fail'){ fbClass='fail show'; fbText='✗ FAIL — 문법을 다시 확인해보세요.'; }
+
+    html += '      <div class="actions">';
+    html += '        <button class="btn btn-grade" data-action="grade">채점</button>';
+    html += '        <button class="btn btn-ghost" data-action="reveal">'+(state.revealed[q.id]?'정답 숨기기':'정답 보기')+'</button>';
+    html += '      </div>';
+
+    html += '      <div class="feedback '+fbClass+'" id="fb-msg">'+fbText+'</div>';
+
+    html += '      <div class="answer-box'+(state.revealed[q.id]?' show':'')+'">';
+    html += '        <div class="lbl">🔍 정답</div>';
+    q.answer.forEach(function(l){ html += '<div class="al">'+esc(l)+'</div>'; });
+    if(q.note){ html += '<div class="note">'+esc(q.note)+'</div>'; }
+    html += '      </div>';
+
+    html += '      <div class="nav-row">';
+    html += '        <button class="btn btn-nav" data-action="prev" '+(state.index===0?'disabled':'')+'>← 이전</button>';
+    html += '        <span class="pos">'+(state.index+1)+' / '+levelQs.length+'</span>';
+    html += '        <button class="btn btn-nav" data-action="next" '+(state.index===levelQs.length-1?'disabled':'')+'>다음 →</button>';
+    html += '      </div>';
+
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+
+    /* terminal log */
+    html += '<div class="terminal">';
+    html += '  <div class="terminal-head"><span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>&nbsp;&nbsp;test-runner</div>';
+    html += '  <div class="terminal-body" id="term-body">';
+    if(state.log.length===0){
+      html += '<div class="ln">대기 중... 채점 버튼을 눌러보세요.</div>';
+    }else{
+      state.log.forEach(function(l){
+        html += '<div class="ln cmd">$ '+esc(l.cmd)+'</div>';
+        html += '<div class="ln '+(l.pass?'pass':'fail')+'">  '+(l.pass?'✓ PASS':'✗ FAIL')+'</div>';
+      });
+    }
+    html += '    <span class="cursor"></span>';
+    html += '  </div>';
+    html += '</div>';
+
+    app.innerHTML = html;
+
+    var ta = document.getElementById('ans-input');
+    if(ta){
+      ta.value = savedInput;
+      ta.addEventListener('input', function(){ state.inputs[q.id] = ta.value; });
+      ta.addEventListener('keydown', function(e){ handleEditorKeydown(e, ta, q); });
+    }
+    var term = document.getElementById('term-body');
+    if(term) term.scrollTop = term.scrollHeight;
+  }
+
+  /* ============ 액션 함수 (클릭 · 키보드 공용) ============ */
+  function doSelectLevel(lv){
+    state.reviewMode = false;
+    state.bookmarkMode = false;
+    state.level = lv;
+    state.index = 0;
+    render();
+  }
+  function doToggleReview(){
+    state.reviewMode = !state.reviewMode;
+    if(state.reviewMode) state.bookmarkMode = false;
+    state.index = 0;
+    render();
+  }
+  function doToggleBookmarkMode(){
+    state.bookmarkMode = !state.bookmarkMode;
+    if(state.bookmarkMode) state.reviewMode = false;
+    state.index = 0;
+    render();
+  }
+  function doExitSpecialMode(){
+    state.reviewMode = false;
+    state.bookmarkMode = false;
+    state.index = 0;
+    render();
+  }
+  function doJump(i){
+    state.index = i;
+    render();
+  }
+  function doPrev(){
+    if(state.index>0){ state.index--; render(); }
+  }
+  function doNext(){
+    var levelQs = activeQuestionList();
+    if(state.index<levelQs.length-1){ state.index++; render(); }
+  }
+  function doReveal(){
+    var levelQs = activeQuestionList();
+    var q = levelQs[state.index];
+    if(!q) return;
+    state.revealed[q.id] = !state.revealed[q.id];
+    render();
+  }
+  function doToggleBookmark(qid){
+    if(!qid) return;
+    if(state.bookmarks[qid]) delete state.bookmarks[qid];
+    else state.bookmarks[qid] = true;
+    saveBookmarks();
+    render();
+  }
+  function doGrade(){
+    var levelQs = activeQuestionList();
+    var q = levelQs[state.index];
+    if(!q) return;
+    var ta = document.getElementById('ans-input');
+    var val = ta ? ta.value : '';
+    var pass = gradeQuestion(q, val);
+    state.progress[q.id] = {status: pass?'pass':'fail', input: val};
+    pushLog(q.id, pass);
+    saveProgress();
+    render();
+  }
+  function doReset(){
+    if(window.confirm('모든 진행 상황을 초기화할까요? 되돌릴 수 없습니다.')){
+      state.progress = {};
+      state.inputs = {};
+      state.revealed = {};
+      state.log = [];
+      state.reviewMode = false;
+      saveProgress();
+      render();
+    }
+  }
+  function focusAnswerInput(){
+    var ta = document.getElementById('ans-input');
+    if(ta) ta.focus();
+  }
+
+  /* ============ 클릭 이벤트 ============ */
+  document.getElementById('app').addEventListener('click', function(e){
+    var el = e.target.closest('[data-action]');
+    if(!el) return;
+    var action = el.getAttribute('data-action');
+
+    if(action==='select-level'){
+      doSelectLevel(parseInt(el.getAttribute('data-level'),10));
+    }else if(action==='toggle-review'){
+      doToggleReview();
+    }else if(action==='toggle-bookmark-mode'){
+      doToggleBookmarkMode();
+    }else if(action==='exit-review'){
+      doExitSpecialMode();
+    }else if(action==='jump'){
+      doJump(parseInt(el.getAttribute('data-index'),10));
+    }else if(action==='prev'){
+      doPrev();
+    }else if(action==='next'){
+      doNext();
+    }else if(action==='reveal'){
+      doReveal();
+    }else if(action==='toggle-bookmark'){
+      doToggleBookmark(el.getAttribute('data-qid'));
+    }else if(action==='grade'){
+      doGrade();
+    }else if(action==='reset'){
+      doReset();
+    }
+  });
+
+  /* ============ 키보드 단축키 ============ */
+  document.addEventListener('keydown', function(e){
+    var ta = document.getElementById('ans-input');
+    var taFocused = document.activeElement === ta;
+
+    // Ctrl/Cmd + Enter : 입력창 포커스 여부와 상관없이 항상 채점
+    if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+      e.preventDefault();
+      doGrade();
+      return;
+    }
+
+    if(taFocused){
+      // 입력창에 포커스가 있을 때는 Esc로 빠져나오는 것만 처리 (타이핑 방해 금지)
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        ta.blur();
+      }
+      return;
+    }
+
+    // 입력창 포커스가 해제된 상태에서만 동작
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      focusAnswerInput();
+    }else if(e.key === 'ArrowLeft'){
+      e.preventDefault();
+      doPrev();
+    }else if(e.key === 'ArrowRight'){
+      e.preventDefault();
+      doNext();
+    }else if(e.key === 'r' || e.key === 'R'){
+      e.preventDefault();
+      doReveal();
+    }
+  });
+
+  /* ============ 시작 ============ */
+  render();
+  loadProgress().then(render);
+
+})();
+</script>
+</body>
+</html>
