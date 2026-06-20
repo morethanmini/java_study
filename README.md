@@ -27,11 +27,11 @@
 
 | 챕터 | 주제 | 문항 수 |
 |------|------|--------|
-| Ch1 | 자바 기본 문법 — 형변환, String, 예외처리 | 46 |
-| Ch2 | OOP 기초 — 클래스, 상속, 인터페이스, 캡슐화 | 29 |
-| Ch3 | 컬렉션 — List, Map, Set, 정렬, 집합 연산 | 48 |
+| Ch1 | 자바 기본 문법 — 형변환, String, 예외처리 | 54 |
+| Ch2 | OOP 기초 — 클래스, 상속, 인터페이스, 캡슐화 | 33 |
+| Ch3 | 컬렉션 — List, Map, Set, 정렬, 집합 연산 | 53 |
 | Ch4 | 자료구조 응용 — Stack, Queue, Deque, PriorityQueue | 28 |
-| Ch5 | 람다·Stream·IO — 람다식, Stream API, Scanner, BufferedReader | 27 |
+| Ch5 | 람다·Stream·IO — 람다식, Stream API, Scanner, BufferedReader | 30 |
 
 ## 단축키
 
